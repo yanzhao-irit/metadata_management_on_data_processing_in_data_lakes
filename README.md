@@ -8,6 +8,8 @@ Data Lake (DL) is known as a Big Data analysis solution. A data lake stores not 
 
 To illustrate that our metadata model of data processing can help users find the relevant processes or datasets to improve the efficiency and efficacy of data preparation, we have implemented a graph database by Neo4j. The choice of a graph database is motivated by the scalability and flexibility as well as the interconnections of this NoSql storage system. We choose the Neo4j platform for its maturity. 
 
+![implemented data base schema](/images/schema.png "implemented data base schema")
+
 We emphasize that the process metadata should at least help users on the following stages:
 
 - **When creating a new dataset from existing source**, data wranglers can find all other datasets created from the same source and their corresponding  processes. So that data wranglers may find code or programs that they can reuse, which saves them time and efforts.
@@ -21,7 +23,20 @@ To validate our implementation and present its application on data preparation, 
 
 Another team has a project that has objective to improve the exchange and interoperability of the medical data by implementing a dataset with applied FHIR (Fast Healthcare Interoperability Resources) standard. They have planned to extract and map clinical and terminology data from the EHR database for the reason that they did not know the program EHDEN existed. Thanks to the implanted metadata of the data lake, this team can search if there are projects that have already worked on extracting clinical terminologies.
 
+    MATCH 
+        (p:Process)-[:HAS_SOURCE_DATA]->(sd),
+        (p)-[:HAS_TARGET_DATA]->(td),
+        (p)-[:HAS_KEYWORD]->(kw:Keyword),
+        (p)-[:HAS_SUBPROCESS]-(p2:Process),
+        (p)-[:HAS_SUBPROCESS]-(p3:Process),
+        a = (p2)-[*2]-(p3)
+    WHERE
+        sd.name = 'EHR'
+        AND kw.name = 'Terminology'
+        OR op.description CONTAINS 'terminologies' 
+    RETURN p,sd,td,kw,p2,p3,a
 
+![example 1](/images/example1.png "example 1")
 
 With the result, users find out the project 'EHDEN' including its sub-process 'EHDEN terminologies' and they can take advantage of its first phases on extracting clinical data and terminologies.
 
@@ -32,5 +47,19 @@ Before the implementation of the data lake as well as the applied metadata, diff
 
 A head trauma doctor wants to analyze all the medical history of his patients to have more information and to improve the effectiveness of his medical treatment. A part of his project concerns the analysis of various medical reports. He annotated a few keywords of three types of reports (paper version): hospitalization reports, neuropsychological assessments and neuropsychological examinations. The team who works on the project needs to extract the electronic version of these reports from the EHR, annotate what he marked and analyze these reports. The first step of this project is to extract the three types of reports. For the reason that the EHR database is not well documented, the team does not know where to find the corresponding data and how to restructure the reports. Therefore, they use the metadata system to check if the three types of reports are already extracted. The used query is presented below and the result is in the following figure. 
 
+    MATCH 
+        (p:Process)-[:HAS_TARGET_DATA]-(d),
+        (p)-[:HAS_OPERATION]->(op:OperationOfProcess),
+        (op)-[:CONCERNS_OPERATION]->(o:Operation),
+        (p)-[:HAS_SUBPROCESS]-(p2:Process),
+        (p)-[:IS_PROCESSED_BY]-(u),
+        (p2)-[*1]-(n)
+    WHERE
+        toLower(d.name) = 'compte rendu hospitalisation' 
+        OR toLower(d.name) = 'evaluation neuropsychologique'
+        OR toLower(d.name) = 'examen neuropsychologique'
+    RETURN p,d,op,o,p2,u,n
+
+![example 2](/images/example2.png "example 2")
 
 With the result, the team discovers that hospitalization reports are already extracted for the EBERS project. Although they cannot find the other two types of reports, they study the different reports that EBERS is retrieving and they are aware that all reports with their field are stored in three tables in the EHR database. They get information from EBERS queries and they contact the person who worked on EBERS to request more experiences on extracting medical reports. The effectiveness of their work is much improved by the experience from the project EBERS.
